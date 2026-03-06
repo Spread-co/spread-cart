@@ -1,14 +1,14 @@
 <template>
   <div class="spread-cart" :class="{ 'spread-cart--open': isOpenComputed }">
-    <!-- Backdrop -->
+    <!-- Backdrop (hidden in editor to avoid covering the canvas) -->
     <div
-      v-if="isOpenComputed"
+      v-if="isOpenComputed && !isEditorMode"
       class="spread-cart__backdrop"
       @click="handleClose"
     ></div>
 
     <!-- Drawer panel -->
-    <div class="spread-cart__drawer" :class="{ 'spread-cart__drawer--open': isOpenComputed }">
+    <div class="spread-cart__drawer" :class="{ 'spread-cart__drawer--open': isOpenComputed, 'spread-cart__drawer--editor': isEditorMode }">
       <!-- Header -->
       <div class="spread-cart__header">
         <h2 class="spread-cart__title">Your Cart</h2>
@@ -249,8 +249,11 @@ export default {
   },
 
   computed: {
+    isEditorMode() {
+      return !!(this.wwEditorState);
+    },
     isOpenComputed() {
-      return !!this.content?.isOpen;
+      return this.isEditorMode || !!this.content?.isOpen;
     },
     hasToken() {
       return !!(this.content?.accessToken);
@@ -852,5 +855,18 @@ export default {
 
 @keyframes spread-cart-spin {
   to { transform: rotate(360deg); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════ */
+/*  Editor override — render inline instead of fixed off-screen       */
+/* ═══════════════════════════════════════════════════════════════════ */
+.spread-cart__drawer--editor {
+  position: relative !important;
+  transform: none !important;
+  width: 100% !important;
+  max-height: 520px;
+  border: 1px dashed var(--spread-bone-border);
+  border-radius: var(--spread-radius-lg);
+  box-shadow: none !important;
 }
 </style>
