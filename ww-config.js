@@ -75,6 +75,11 @@ export default {
       event: {},
     },
     {
+      name: 'cart:saved',
+      label: { en: 'On Cart Saved' },
+      event: { cartId: '', name: '' },
+    },
+    {
       name: 'cart:error',
       label: { en: 'On Error' },
       event: { message: '' },

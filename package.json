@@ -1,6 +1,6 @@
 {
   "name": "spread-cart",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Slide-in cart drawer with quantity management, subtotal, and checkout trigger for Spread.co",
   "scripts": {
     "build": "weweb build --name=spread-cart --type=element",

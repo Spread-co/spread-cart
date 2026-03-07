@@ -112,6 +112,28 @@
         </div>
       </div>
 
+      <!-- Save-for-later name prompt overlay -->
+      <div class="spread-cart__save-overlay" v-if="showSavePrompt">
+        <div class="spread-cart__save-card">
+          <p class="spread-cart__save-title">Save cart for later</p>
+          <input
+            v-model="saveName"
+            class="spread-cart__save-input"
+            type="text"
+            placeholder="e.g. Weekly Essentials"
+            maxlength="80"
+            @keydown.enter="confirmSave"
+          />
+          <div class="spread-cart__save-actions">
+            <button class="spread-cart__save-cancel" @click="cancelSave">Cancel</button>
+            <button class="spread-cart__save-confirm" :disabled="saving" @click="confirmSave">
+              <span v-if="saving" class="spread-cart__spinner spread-cart__spinner--sm"></span>
+              <span v-else>Save</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Footer (sticky) -->
       <div
         class="spread-cart__footer"
@@ -129,6 +151,16 @@
         >
           <span v-if="checkingOut" class="spread-cart__spinner spread-cart__spinner--sm"></span>
           <span v-else>Checkout</span>
+        </button>
+        <button
+          class="spread-cart__save-btn"
+          :disabled="saving"
+          @click="handleSaveForLater"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Save for Later
         </button>
       </div>
     </div>
@@ -245,6 +277,10 @@ export default {
       updatingItem: null,
       checkingOut: false,
       _lastRefreshTrigger: 0,
+      // Save for later
+      showSavePrompt: false,
+      saveName: '',
+      saving: false,
     };
   },
 
@@ -404,6 +440,51 @@ export default {
     handleClose() {
       this.$emit('trigger-event', { name: 'cart:close', event: {} });
       this.$emit('update:content', { isOpen: false });
+    },
+
+    /* ── Save for later ── */
+    handleSaveForLater() {
+      if (!this.cartData.cart_id || this.saving) return;
+      this.saveName = '';
+      this.showSavePrompt = true;
+    },
+
+    cancelSave() {
+      this.showSavePrompt = false;
+      this.saveName = '';
+    },
+
+    async confirmSave() {
+      if (this.saving) return;
+      this.saving = true;
+      try {
+        const client = this.makeClient();
+        const result = await client.rpc('save_cart', {
+          p_cart_id: this.cartData.cart_id,
+          p_name: this.saveName || null,
+        });
+        this.showSavePrompt = false;
+        this.saveName = '';
+        // Reset cart state (it's now saved, no longer active)
+        this.cartData = { cart_id: null, items: [], subtotal: 0, item_count: 0 };
+        this.syncComponentVars();
+        this.$emit('trigger-event', {
+          name: 'cart:saved',
+          event: { cartId: result.cart_id, name: result.name },
+        });
+        // Close drawer after save
+        this.handleClose();
+      } catch (err) {
+        const msg = err.message === 'cart_empty'
+          ? 'Your cart is empty — nothing to save'
+          : err.message || 'Failed to save cart';
+        this.$emit('trigger-event', {
+          name: 'cart:error',
+          event: { message: msg },
+        });
+      } finally {
+        this.saving = false;
+      }
     },
 
     /* ── Helpers ── */
@@ -820,6 +901,124 @@ export default {
 }
 
 .spread-cart__checkout-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Save for later button ── */
+.spread-cart__save-btn {
+  width: 100%;
+  height: 42px;
+  margin-top: 8px;
+  border: 1px solid var(--spread-burnt-orange);
+  border-radius: var(--spread-radius-md);
+  background: transparent;
+  color: var(--spread-burnt-orange);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--spread-font-stack);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.spread-cart__save-btn:hover:not(:disabled) {
+  background: var(--spread-cream);
+}
+
+.spread-cart__save-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Save overlay / prompt ── */
+.spread-cart__save-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(26, 15, 20, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  padding: 24px;
+}
+
+.spread-cart__save-card {
+  background: #fff;
+  border-radius: var(--spread-radius-lg);
+  padding: 24px;
+  width: 100%;
+  max-width: 320px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+}
+
+.spread-cart__save-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--spread-tyrian);
+  margin: 0 0 12px;
+}
+
+.spread-cart__save-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--spread-bone-border);
+  border-radius: var(--spread-radius-sm);
+  font-size: 14px;
+  font-family: var(--spread-font-stack);
+  color: var(--spread-text-primary);
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.spread-cart__save-input:focus {
+  border-color: var(--spread-burnt-orange);
+}
+
+.spread-cart__save-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.spread-cart__save-cancel {
+  flex: 1;
+  height: 38px;
+  border: 1px solid var(--spread-bone-border);
+  border-radius: var(--spread-radius-sm);
+  background: transparent;
+  color: var(--spread-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--spread-font-stack);
+  cursor: pointer;
+}
+
+.spread-cart__save-confirm {
+  flex: 1;
+  height: 38px;
+  border: none;
+  border-radius: var(--spread-radius-sm);
+  background: var(--spread-burnt-orange);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--spread-font-stack);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spread-cart__save-confirm:hover:not(:disabled) {
+  background: var(--spread-burnt-orange-hover);
+}
+
+.spread-cart__save-confirm:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
